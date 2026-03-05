@@ -2,7 +2,9 @@
 using System;
 using UnityEditor;
 using UnityEngine;
-using UnityBackgroundProject;
+
+namespace UnityBackgroundProject
+{
 
 /// <summary>
 /// Toolbar section for background project controls.
@@ -202,5 +204,6 @@ public class BackgroundProjectToolbarSection : IEditorToolbar
 
         menu.ShowAsContext();
     }
+}
 }
 #endif

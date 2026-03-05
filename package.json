@@ -1,0 +1,14 @@
+{
+  "name": "com.frostebite.unitybackgroundproject",
+  "version": "1.0.0",
+  "displayName": "Unity Background Project",
+  "description": "Run Unity builds, compiles, and tests in the background without blocking the editor.",
+  "unity": "2021.3",
+  "author": {
+    "name": "Frostebite",
+    "url": "https://github.com/frostebite"
+  },
+  "license": "MIT",
+  "keywords": ["build", "background", "editor", "automation"],
+  "type": "tool"
+}

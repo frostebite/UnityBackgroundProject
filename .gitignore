@@ -1,0 +1,13 @@
+Library/
+Temp/
+obj/
+Logs/
+*.csproj
+*.sln
+*.user
+*.vs/
+.idea/
+
+# Project-specific config (users should copy from background-project-config.example.json)
+~ps/background-project-config.json
+~ps/background-project-config.json.meta

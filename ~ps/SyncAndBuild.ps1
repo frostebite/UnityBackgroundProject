@@ -139,23 +139,25 @@ function Resolve-BuildMethod {
                 }
             }
 
-            # Fall back to built-in defaults if no config was loaded
-            if (-not $methodMap) {
-                $methodMap = @{
-                    "shell" = @{ validation = "BuildMethodTest.ShellBuildValidation"; steam = "BuildMethodTest.ShellBuild" }
-                    "tow"   = @{ validation = "BuildMethodTest.TurnOfWarBuildValidation"; steam = "BuildMethodTest.TurnOfWarBuild" }
-                    "aoo"   = @{ validation = "BuildMethodTest.BuildAreaOfOperationsValidation"; steam = "BuildMethodTest.BuildAreaOfOperations" }
+            # If config file provided a method map, try to resolve from it
+            if ($methodMap) {
+                if ($methodMap.ContainsKey($frameworkName)) {
+                    $variant = if ($UseSteam) { "steam" } else { "validation" }
+                    $resolvedMethod = $methodMap[$frameworkName][$variant]
+                    Write-BackgroundProjectLog "Resolved build method: $resolvedMethod (variant: $variant)" "INFO"
+                    return $resolvedMethod
+                } else {
+                    Write-BackgroundProjectLog "No build method mapping for framework id '$frameworkName' in config, using naming convention" "WARN"
                 }
+            } else {
+                Write-BackgroundProjectLog "No background-project-config.json found, using naming convention fallback" "WARN"
             }
 
-            if ($methodMap.ContainsKey($frameworkName)) {
-                $variant = if ($UseSteam) { "steam" } else { "validation" }
-                $resolvedMethod = $methodMap[$frameworkName][$variant]
-                Write-BackgroundProjectLog "Resolved build method: $resolvedMethod (variant: $variant)" "INFO"
-                return $resolvedMethod
-            } else {
-                Write-BackgroundProjectLog "No build method mapping for framework id '$frameworkName', using default" "WARN"
-            }
+            # Default: use the framework name directly as the build method class name
+            $variant = if ($UseSteam) { "Build" } else { "BuildValidation" }
+            $resolvedMethod = "BuildMethod.$($frameworkName)$($variant)"
+            Write-BackgroundProjectLog "Resolved build method via naming convention: $resolvedMethod" "INFO"
+            return $resolvedMethod
         } catch {
             Write-BackgroundProjectLog "Could not load ProfileLoader: $($_.Exception.Message)" "WARN"
             Write-BackgroundProjectLog "Falling back to default build method" "WARN"

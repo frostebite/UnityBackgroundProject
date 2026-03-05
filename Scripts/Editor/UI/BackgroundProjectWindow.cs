@@ -1,7 +1,9 @@
 using System;
 using UnityEditor;
 using UnityEngine;
-using UnityBackgroundProject;
+
+namespace UnityBackgroundProject
+{
 
 /// <summary>
 /// Editor window for background project management.
@@ -210,4 +212,5 @@ public class BackgroundProjectWindow : EditorWindow
             EditorGUILayout.SelectableLabel(_outputLog, EditorStyles.textArea, GUILayout.ExpandHeight(true));
         }
     }
+}
 }
