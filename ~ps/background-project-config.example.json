@@ -1,0 +1,14 @@
+{
+    "// INSTRUCTIONS": "Copy this file to 'background-project-config.json' (same folder) and customize for your project.",
+    "// artifactSubpath": "The company/product subfolder under AppData/LocalLow where Unity writes test results.",
+    "// buildMethodMap": "Maps framework IDs to C# build methods. Each entry needs 'validation' and 'steam' variants.",
+
+    "artifactSubpath": "My Company/My Game",
+
+    "buildMethodMap": {
+        "myframework": {
+            "validation": "BuildMethodTest.MyFrameworkBuildValidation",
+            "steam": "BuildMethodTest.MyFrameworkBuild"
+        }
+    }
+}
