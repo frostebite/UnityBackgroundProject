@@ -1,5 +1,6 @@
 #if HAS_EDITOR_TOOLBAR
 using System;
+using EditorToolbar;
 using UnityEditor;
 using UnityEngine;
 
