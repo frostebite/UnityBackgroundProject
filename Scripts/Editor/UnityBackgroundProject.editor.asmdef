@@ -1,7 +1,9 @@
 {
     "name": "UnityBackgroundProject.Editor",
     "rootNamespace": "",
-    "references": [],
+    "references": [
+        "EditorToolbar"
+    ],
     "includePlatforms": [
         "Editor"
     ],
