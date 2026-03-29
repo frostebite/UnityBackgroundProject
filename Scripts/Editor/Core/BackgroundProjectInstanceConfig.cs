@@ -3,14 +3,14 @@ using System;
 namespace UnityBackgroundProject
 {
     [Serializable]
-    internal class BackgroundProjectInstanceConfigRoot
+    public class BackgroundProjectInstanceConfigRoot
     {
         public string primaryInstance;
         public BackgroundProjectInstanceConfigEntry[] instances;
     }
 
     [Serializable]
-    internal class BackgroundProjectInstanceConfigEntry
+    public class BackgroundProjectInstanceConfigEntry
     {
         public string kind;
         public string displayName;
@@ -22,7 +22,7 @@ namespace UnityBackgroundProject
     }
 
     [Serializable]
-    internal class BackgroundProjectGitHubRunnerConfig
+    public class BackgroundProjectGitHubRunnerConfig
     {
         public bool enabled;
         public string repository;
