@@ -113,7 +113,8 @@ function Get-BackgroundProjectPath {
     param (
         [string]$ProjectRoot,
         [string]$Suffix = "-BackgroundWorker",
-        [string]$Path = ""
+        [string]$Path = "",
+        [string]$InstanceName = ""
     )
 
     if ($Path) {
@@ -126,6 +127,26 @@ function Get-BackgroundProjectPath {
         return $env:BACKGROUND_PROJECT_PATH
     }
 
+    $instance = Resolve-BackgroundProjectInstance -ProjectRoot $ProjectRoot -InstanceName $InstanceName -DefaultSuffix $Suffix
+    if ($instance) {
+        if ($instance.WorkspacePath) {
+            return $instance.WorkspacePath
+        }
+
+        if ($instance.Path) {
+            return $instance.Path
+        }
+
+        $runnerWorkspacePath = Get-GitHubRunnerWorkspacePath -ProjectRoot $ProjectRoot -Instance $instance
+        if ($runnerWorkspacePath) {
+            return $runnerWorkspacePath
+        }
+
+        if ($instance.Suffix) {
+            $Suffix = $instance.Suffix
+        }
+    }
+
     # Use sibling folder approach
     $projectName = Split-Path $ProjectRoot -Leaf
     $parentDir = Split-Path $ProjectRoot -Parent
@@ -136,6 +157,153 @@ function Get-BackgroundProjectPath {
     }
 
     return Join-Path $parentDir "$projectName$Suffix"
+}
+
+function Get-BackgroundProjectConfigPath {
+    $configPath = Join-Path $PSScriptRoot "background-project-config.json"
+    if (Test-Path $configPath) {
+        return $configPath
+    }
+
+    return $null
+}
+
+function Get-BackgroundProjectConfig {
+    $configPath = Get-BackgroundProjectConfigPath
+    if (-not $configPath) {
+        return $null
+    }
+
+    try {
+        return Get-Content $configPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        Write-BackgroundProjectLog "WARNING: Could not parse background project config: $($_.Exception.Message)" "WARN"
+        return $null
+    }
+}
+
+function Get-BackgroundProjectPrimaryInstanceName {
+    param (
+        [string]$DefaultName = "primary"
+    )
+
+    $config = Get-BackgroundProjectConfig
+    if ($config -and $config.primaryInstance) {
+        return $config.primaryInstance
+    }
+
+    return $DefaultName
+}
+
+function Get-BackgroundProjectInstances {
+    param (
+        [string]$ProjectRoot,
+        [string]$DefaultSuffix = "-BackgroundWorker"
+    )
+
+    $config = Get-BackgroundProjectConfig
+    $primaryName = Get-BackgroundProjectPrimaryInstanceName
+
+    if ($config -and $config.instances -and $config.instances.Count -gt 0) {
+        $instances = @()
+        $index = 0
+
+        foreach ($rawInstance in $config.instances) {
+            $instanceName = if ($rawInstance.name) { $rawInstance.name } elseif ($index -eq 0) { "primary" } else { "instance-$index" }
+            $instanceSuffix = if ($rawInstance.suffix) { $rawInstance.suffix } else { $DefaultSuffix }
+            $instancePath = if ($rawInstance.path) { $rawInstance.path } else { $null }
+            $instanceWorkspacePath = if ($rawInstance.workspacePath) { $rawInstance.workspacePath } else { $null }
+            $isPrimary = $instanceName -eq $primaryName
+            $instanceKind = if ($rawInstance.kind) { $rawInstance.kind } elseif ($rawInstance.githubRunner) { "github-runner" } else { "unity-worker" }
+
+            $instances += [PSCustomObject]@{
+                Name = $instanceName
+                DisplayName = $rawInstance.displayName
+                Kind = $instanceKind
+                Suffix = $instanceSuffix
+                Path = $instancePath
+                WorkspacePath = $instanceWorkspacePath
+                IsPrimary = $isPrimary
+                GitHubRunner = $rawInstance.githubRunner
+            }
+
+            $index++
+        }
+
+        if (-not ($instances | Where-Object { $_.IsPrimary })) {
+            $instances[0].IsPrimary = $true
+        }
+
+        return $instances
+    }
+
+    return @(
+        [PSCustomObject]@{
+            Name = $primaryName
+            DisplayName = "Primary"
+            Kind = "unity-worker"
+            Suffix = $DefaultSuffix
+            Path = $null
+            WorkspacePath = $null
+            IsPrimary = $true
+            GitHubRunner = $null
+        }
+    )
+}
+
+function Resolve-BackgroundProjectInstance {
+    param (
+        [string]$ProjectRoot,
+        [string]$InstanceName = "",
+        [string]$DefaultSuffix = "-BackgroundWorker"
+    )
+
+    $instances = Get-BackgroundProjectInstances -ProjectRoot $ProjectRoot -DefaultSuffix $DefaultSuffix
+
+    if ($InstanceName) {
+        $match = $instances | Where-Object { $_.Name -eq $InstanceName } | Select-Object -First 1
+        if (-not $match) {
+            throw "Background project instance '$InstanceName' was not found in background-project-config.json"
+        }
+
+        return $match
+    }
+
+    return ($instances | Where-Object { $_.IsPrimary } | Select-Object -First 1)
+}
+
+function Get-GitHubRunnerWorkspacePath {
+    param (
+        [string]$ProjectRoot,
+        [pscustomobject]$Instance
+    )
+
+    if (-not $Instance -or -not $Instance.GitHubRunner) {
+        return $null
+    }
+
+    $runner = $Instance.GitHubRunner
+    if ($runner.workspacePath) {
+        return $runner.workspacePath
+    }
+
+    $runnerPath = if ($runner.runnerPath) { $runner.runnerPath } else { $null }
+    if (-not $runnerPath) {
+        return $null
+    }
+
+    $repositoryFullName = if ($runner.repository) { $runner.repository } elseif ($runner.repoName) { $runner.repoName } else { $null }
+    $repoName = Split-Path $ProjectRoot -Leaf
+    if ($repositoryFullName) {
+        $segments = $repositoryFullName -split "/"
+        if ($segments.Length -gt 1) {
+            $repoName = $segments[-1]
+        } else {
+            $repoName = $repositoryFullName
+        }
+    }
+
+    return Join-Path $runnerPath "_work\$repoName\$repoName"
 }
 
 function Sync-BackgroundProject {
@@ -624,12 +792,25 @@ function Copy-BackgroundProjectLogs {
         [Parameter(Mandatory=$true)]
         [string]$BackgroundProjectPath,
 
-        [string]$OperationName = "BackgroundWorker"
+        [string]$OperationName = "BackgroundWorker",
+
+        [string]$InstanceName = ""
     )
 
     $backgroundLogsPath = Join-Path $BackgroundProjectPath "UnityFileLogger"
     $mainLogsPath = Join-Path $ProjectRoot "UnityFileLogger"
     $destinationPath = Join-Path $mainLogsPath "BackgroundWorker"
+
+    if ($InstanceName) {
+        try {
+            $primaryInstance = Resolve-BackgroundProjectInstance -ProjectRoot $ProjectRoot
+            if ($primaryInstance -and $primaryInstance.Name -ne $InstanceName) {
+                $destinationPath = Join-Path $destinationPath $InstanceName
+            }
+        } catch {
+            $destinationPath = Join-Path $destinationPath $InstanceName
+        }
+    }
 
     # Check if background project has logs
     if (-not (Test-Path $backgroundLogsPath)) {

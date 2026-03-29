@@ -9,6 +9,10 @@
 .PARAMETER Suffix
     Suffix for the background project directory name. Default: "-BackgroundWorker"
 
+.PARAMETER InstanceName
+    Named instance from background-project-config.json. When omitted, uses the
+    primary instance for backward compatibility.
+
 .PARAMETER SkipSync
     Skip the sync step (use if project is already synced).
 
@@ -29,6 +33,7 @@
 
 param(
     [string]$Suffix = "-BackgroundWorker",
+    [string]$InstanceName = "",
     [switch]$SkipSync,
     [switch]$Verbose,
     [int]$TimeoutSeconds = 1800
@@ -41,7 +46,7 @@ $ErrorActionPreference = "Stop"
 
 # Determine paths first (needed for lock)
 $projectRoot = Get-BackgroundProjectRoot -ScriptRoot $PSScriptRoot -WorkingDirectory $PWD.Path
-$destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix
+$destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix -InstanceName $InstanceName
 
 # Acquire lock before any operations
 if (-not (New-BackgroundProjectLock -DestinationPath $destinationPath -Operation "SyncAndCompileCheck")) {
@@ -108,7 +113,7 @@ try {
     $script:exitCode = 1
 } finally {
     # Copy logs from background project to main workspace
-    Copy-BackgroundProjectLogs -ProjectRoot $projectRoot -BackgroundProjectPath $destinationPath -OperationName "SyncAndCompileCheck"
+    Copy-BackgroundProjectLogs -ProjectRoot $projectRoot -BackgroundProjectPath $destinationPath -OperationName "SyncAndCompileCheck" -InstanceName $InstanceName
 
     # Always release the lock
     Remove-BackgroundProjectLock -DestinationPath $destinationPath

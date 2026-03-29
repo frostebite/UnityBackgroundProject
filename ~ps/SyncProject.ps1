@@ -12,6 +12,10 @@
 .PARAMETER Path
     Custom path for the background project. If not specified, uses sibling directory.
 
+.PARAMETER InstanceName
+    Named instance from background-project-config.json. When omitted, uses the
+    primary instance for backward compatibility.
+
 .PARAMETER Verbose
     Show detailed output during sync.
 
@@ -31,6 +35,7 @@
 param(
     [string]$Suffix = "-BackgroundWorker",
     [string]$Path = "",
+    [string]$InstanceName = "",
     [switch]$Verbose
 )
 
@@ -39,7 +44,7 @@ param(
 
 # Determine paths first (needed for lock)
 $projectRoot = Get-BackgroundProjectRoot
-$destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix -Path $Path
+$destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix -Path $Path -InstanceName $InstanceName
 
 # Acquire lock before any operations
 if (-not (New-BackgroundProjectLock -DestinationPath $destinationPath -Operation "SyncProject")) {
@@ -57,7 +62,7 @@ try {
     $script:exitCode = 1
 } finally {
     # Copy logs from background project to main workspace (if any exist)
-    Copy-BackgroundProjectLogs -ProjectRoot $projectRoot -BackgroundProjectPath $destinationPath -OperationName "SyncProject"
+    Copy-BackgroundProjectLogs -ProjectRoot $projectRoot -BackgroundProjectPath $destinationPath -OperationName "SyncProject" -InstanceName $InstanceName
 
     # Always release the lock
     Remove-BackgroundProjectLock -DestinationPath $destinationPath

@@ -10,6 +10,10 @@
 .PARAMETER Suffix
     Suffix for the background project directory name. Default: "-BackgroundWorker"
 
+.PARAMETER InstanceName
+    Named instance from background-project-config.json. When omitted, uses the
+    primary instance for backward compatibility.
+
 .PARAMETER TestPlatform
     Test platform to run. Default: "EditMode". Options: EditMode, PlayMode
 
@@ -47,6 +51,7 @@
 
 param(
     [string]$Suffix = "-BackgroundWorker",
+    [string]$InstanceName = "",
     [string]$TestPlatform = "EditMode",
     [string]$TestCategory = "",
     [string]$TestFilter = "",
@@ -62,7 +67,7 @@ $ErrorActionPreference = "Stop"
 
 # Determine paths first (needed for lock)
 $projectRoot = Get-BackgroundProjectRoot -ScriptRoot $PSScriptRoot -WorkingDirectory $PWD.Path
-$destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix
+$destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix -InstanceName $InstanceName
 
 # Build operation description for lock
 $operationDesc = "SyncAndRunTests"
@@ -196,7 +201,7 @@ try {
     $script:exitCode = 1
 } finally {
     # Copy logs from background project to main workspace
-    Copy-BackgroundProjectLogs -ProjectRoot $projectRoot -BackgroundProjectPath $destinationPath -OperationName "SyncAndRunTests"
+    Copy-BackgroundProjectLogs -ProjectRoot $projectRoot -BackgroundProjectPath $destinationPath -OperationName "SyncAndRunTests" -InstanceName $InstanceName
 
     # Always release the lock
     Remove-BackgroundProjectLock -DestinationPath $destinationPath

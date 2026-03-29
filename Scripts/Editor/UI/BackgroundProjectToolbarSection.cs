@@ -53,7 +53,8 @@ public class BackgroundProjectToolbarSection : IEditorToolbar
             GUI.color = originalColor;
 
             // Quick actions
-            bool isBusy = BackgroundProjectSettings.IsSyncing ||
+            bool isBusy = BackgroundProjectSettings.IsInitializing ||
+                          BackgroundProjectSettings.IsSyncing ||
                           BackgroundProjectSettings.IsCompiling ||
                           BackgroundProjectSettings.IsRunningTests;
 
@@ -97,7 +98,12 @@ public class BackgroundProjectToolbarSection : IEditorToolbar
 
     private void UpdateStatus()
     {
-        if (BackgroundProjectSettings.IsSyncing)
+        if (BackgroundProjectSettings.IsInitializing)
+        {
+            _statusText = "Initializing...";
+            _statusColor = new Color(1f, 0.7f, 0f); // Orange
+        }
+        else if (BackgroundProjectSettings.IsSyncing)
         {
             _statusText = "Syncing...";
             _statusColor = new Color(1f, 0.7f, 0f); // Orange
@@ -142,6 +148,8 @@ public class BackgroundProjectToolbarSection : IEditorToolbar
         {
             "Background Project Status",
             "",
+            $"Instance: {BackgroundProjectSettings.SelectedInstanceName}",
+            $"Kind: {BackgroundProjectSettings.GetSelectedInstanceKind()}",
             $"Path: {BackgroundProjectSettings.GetBackgroundProjectPath()}",
             $"Exists: {(BackgroundProjectSettings.BackgroundProjectExists() ? "Yes" : "No")}",
             ""
@@ -188,6 +196,18 @@ public class BackgroundProjectToolbarSection : IEditorToolbar
         {
             _ = BackgroundProjectService.Instance.RunTestsAsync("PlayMode");
         });
+
+        menu.AddSeparator("");
+
+        foreach (var instance in BackgroundProjectSettings.GetInstanceConfigs())
+        {
+            var instanceName = instance.name;
+            var selected = string.Equals(instanceName, BackgroundProjectSettings.SelectedInstanceName, StringComparison.Ordinal);
+            menu.AddItem(new GUIContent($"Instance/{BackgroundProjectSettings.GetInstanceDisplayName(instance)}"), selected, () =>
+            {
+                BackgroundProjectSettings.SelectedInstanceName = instanceName;
+            });
+        }
 
         menu.AddSeparator("");
 

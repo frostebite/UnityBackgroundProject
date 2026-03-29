@@ -17,6 +17,7 @@ namespace UnityBackgroundProject
     {
         public bool Success { get; set; }
         public int ExitCode { get; set; }
+        public string InstanceName { get; set; }
         public string Output { get; set; }
         public string Error { get; set; }
         public TimeSpan Duration { get; set; }
@@ -51,7 +52,7 @@ namespace UnityBackgroundProject
         /// <summary>
         /// Syncs the current project to the background project location.
         /// </summary>
-        public async Task<BackgroundProjectResult> SyncAsync(CancellationToken ct = default)
+        public async Task<BackgroundProjectResult> SyncAsync(string instanceName = null, CancellationToken ct = default)
         {
             if (BackgroundProjectSettings.IsSyncing)
             {
@@ -62,8 +63,9 @@ namespace UnityBackgroundProject
                 };
             }
 
+            var resolvedInstance = string.IsNullOrWhiteSpace(instanceName) ? BackgroundProjectSettings.SelectedInstanceName : instanceName;
             var sourcePath = BackgroundProjectSettings.GetProjectRoot();
-            var destPath = BackgroundProjectSettings.GetBackgroundProjectPath();
+            var destPath = BackgroundProjectSettings.GetBackgroundProjectPath(resolvedInstance);
 
             if (string.IsNullOrEmpty(sourcePath) || string.IsNullOrEmpty(destPath))
             {
@@ -79,7 +81,7 @@ namespace UnityBackgroundProject
             OnStatusChanged?.Invoke("Syncing...");
 
             var stopwatch = Stopwatch.StartNew();
-            BackgroundProjectResult result = new BackgroundProjectResult { Success = false, Error = "Unknown error" };
+            BackgroundProjectResult result = new BackgroundProjectResult { Success = false, Error = "Unknown error", InstanceName = resolvedInstance };
 
             try
             {
@@ -97,12 +99,12 @@ namespace UnityBackgroundProject
                 if (result.Success)
                 {
                     BackgroundProjectSettings.LastSyncTime = DateTime.Now;
-                    Debug.Log($"[BackgroundProject] Sync completed in {result.Duration.TotalSeconds:F1}s");
+                    Debug.Log($"[BackgroundProject] Sync completed for '{resolvedInstance}' in {result.Duration.TotalSeconds:F1}s");
                 }
                 else
                 {
                     BackgroundProjectSettings.LastSyncError = result.Error;
-                    Debug.LogError($"[BackgroundProject] Sync failed: {result.Error}");
+                    Debug.LogError($"[BackgroundProject] Sync failed for '{resolvedInstance}': {result.Error}");
                 }
             }
             catch (Exception ex)
@@ -110,11 +112,12 @@ namespace UnityBackgroundProject
                 result = new BackgroundProjectResult
                 {
                     Success = false,
+                    InstanceName = resolvedInstance,
                     Error = ex.Message,
                     Duration = stopwatch.Elapsed
                 };
                 BackgroundProjectSettings.LastSyncError = ex.Message;
-                Debug.LogError($"[BackgroundProject] Sync error: {ex.Message}");
+                Debug.LogError($"[BackgroundProject] Sync error for '{resolvedInstance}': {ex.Message}");
             }
             finally
             {
@@ -201,7 +204,7 @@ namespace UnityBackgroundProject
         /// <summary>
         /// Runs a compile check on the background project.
         /// </summary>
-        public async Task<BackgroundProjectResult> CompileCheckAsync(CancellationToken ct = default)
+        public async Task<BackgroundProjectResult> CompileCheckAsync(string instanceName = null, CancellationToken ct = default)
         {
             if (BackgroundProjectSettings.IsCompiling)
             {
@@ -212,7 +215,8 @@ namespace UnityBackgroundProject
                 };
             }
 
-            var destPath = BackgroundProjectSettings.GetBackgroundProjectPath();
+            var resolvedInstance = string.IsNullOrWhiteSpace(instanceName) ? BackgroundProjectSettings.SelectedInstanceName : instanceName;
+            var destPath = BackgroundProjectSettings.GetBackgroundProjectPath(resolvedInstance);
             if (!Directory.Exists(destPath))
             {
                 return new BackgroundProjectResult
@@ -236,7 +240,7 @@ namespace UnityBackgroundProject
             OnStatusChanged?.Invoke("Compiling...");
 
             var stopwatch = Stopwatch.StartNew();
-            BackgroundProjectResult result = new BackgroundProjectResult { Success = false, Error = "Unknown error" };
+            BackgroundProjectResult result = new BackgroundProjectResult { Success = false, Error = "Unknown error", InstanceName = resolvedInstance };
 
             try
             {
@@ -256,11 +260,11 @@ namespace UnityBackgroundProject
 
                 if (result.Success)
                 {
-                    Debug.Log($"[BackgroundProject] Compile check passed in {result.Duration.TotalSeconds:F1}s");
+                    Debug.Log($"[BackgroundProject] Compile check passed for '{resolvedInstance}' in {result.Duration.TotalSeconds:F1}s");
                 }
                 else
                 {
-                    Debug.LogError($"[BackgroundProject] Compile check failed: {result.Error}");
+                    Debug.LogError($"[BackgroundProject] Compile check failed for '{resolvedInstance}': {result.Error}");
                 }
             }
             catch (Exception ex)
@@ -268,10 +272,11 @@ namespace UnityBackgroundProject
                 result = new BackgroundProjectResult
                 {
                     Success = false,
+                    InstanceName = resolvedInstance,
                     Error = ex.Message,
                     Duration = stopwatch.Elapsed
                 };
-                Debug.LogError($"[BackgroundProject] Compile check error: {ex.Message}");
+                Debug.LogError($"[BackgroundProject] Compile check error for '{resolvedInstance}': {ex.Message}");
             }
             finally
             {
@@ -289,6 +294,7 @@ namespace UnityBackgroundProject
         public async Task<BackgroundProjectResult> RunTestsAsync(
             string testPlatform = "EditMode",
             string testCategory = null,
+            string instanceName = null,
             CancellationToken ct = default)
         {
             if (BackgroundProjectSettings.IsRunningTests)
@@ -300,7 +306,8 @@ namespace UnityBackgroundProject
                 };
             }
 
-            var destPath = BackgroundProjectSettings.GetBackgroundProjectPath();
+            var resolvedInstance = string.IsNullOrWhiteSpace(instanceName) ? BackgroundProjectSettings.SelectedInstanceName : instanceName;
+            var destPath = BackgroundProjectSettings.GetBackgroundProjectPath(resolvedInstance);
             if (!Directory.Exists(destPath))
             {
                 return new BackgroundProjectResult
@@ -324,7 +331,7 @@ namespace UnityBackgroundProject
             OnStatusChanged?.Invoke($"Running {testPlatform} tests...");
 
             var stopwatch = Stopwatch.StartNew();
-            BackgroundProjectResult result = new BackgroundProjectResult { Success = false, Error = "Unknown error" };
+            BackgroundProjectResult result = new BackgroundProjectResult { Success = false, Error = "Unknown error", InstanceName = resolvedInstance };
 
             try
             {
@@ -352,11 +359,11 @@ namespace UnityBackgroundProject
 
                 if (result.Success)
                 {
-                    Debug.Log($"[BackgroundProject] Tests passed in {result.Duration.TotalSeconds:F1}s");
+                    Debug.Log($"[BackgroundProject] Tests passed for '{resolvedInstance}' in {result.Duration.TotalSeconds:F1}s");
                 }
                 else
                 {
-                    Debug.LogError($"[BackgroundProject] Tests failed: {result.Error}");
+                    Debug.LogError($"[BackgroundProject] Tests failed for '{resolvedInstance}': {result.Error}");
                 }
             }
             catch (Exception ex)
@@ -364,10 +371,11 @@ namespace UnityBackgroundProject
                 result = new BackgroundProjectResult
                 {
                     Success = false,
+                    InstanceName = resolvedInstance,
                     Error = ex.Message,
                     Duration = stopwatch.Elapsed
                 };
-                Debug.LogError($"[BackgroundProject] Test run error: {ex.Message}");
+                Debug.LogError($"[BackgroundProject] Test run error for '{resolvedInstance}': {ex.Message}");
             }
             finally
             {
@@ -382,12 +390,13 @@ namespace UnityBackgroundProject
         /// <summary>
         /// Opens the background project in a new Unity editor instance.
         /// </summary>
-        public void OpenBackgroundProject()
+        public void OpenBackgroundProject(string instanceName = null)
         {
-            var destPath = BackgroundProjectSettings.GetBackgroundProjectPath();
+            var resolvedInstance = string.IsNullOrWhiteSpace(instanceName) ? BackgroundProjectSettings.SelectedInstanceName : instanceName;
+            var destPath = BackgroundProjectSettings.GetBackgroundProjectPath(resolvedInstance);
             if (!Directory.Exists(destPath))
             {
-                Debug.LogError("[BackgroundProject] Background project does not exist. Please sync first.");
+                Debug.LogError($"[BackgroundProject] Background project '{resolvedInstance}' does not exist. Please initialize or sync first.");
                 return;
             }
 
@@ -409,11 +418,79 @@ namespace UnityBackgroundProject
                 };
 
                 Process.Start(startInfo);
-                Debug.Log($"[BackgroundProject] Opening: {destPath}");
+                Debug.Log($"[BackgroundProject] Opening '{resolvedInstance}': {destPath}");
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[BackgroundProject] Failed to open project: {ex.Message}");
+            }
+        }
+
+        public async Task<BackgroundProjectResult> InitializeInstanceAsync(bool configureGitHubRunner = false, bool initializeAll = false, CancellationToken ct = default)
+        {
+            if (BackgroundProjectSettings.IsInitializing)
+            {
+                return new BackgroundProjectResult
+                {
+                    Success = false,
+                    Error = "Initialization already in progress",
+                    InstanceName = initializeAll ? "all" : BackgroundProjectSettings.SelectedInstanceName
+                };
+            }
+
+            var scriptPath = Path.Combine(
+                BackgroundProjectSettings.GetProjectRoot(),
+                "Assets", "_Game", "Submodules", "UnityBackgroundProject", "~ps", "InitializeBackgroundProjects.ps1");
+
+            var resolvedInstance = initializeAll ? "all" : BackgroundProjectSettings.SelectedInstanceName;
+            BackgroundProjectSettings.IsInitializing = true;
+            OnStatusChanged?.Invoke(configureGitHubRunner ? "Initializing runner..." : "Initializing...");
+
+            if (!File.Exists(scriptPath))
+            {
+                var missingScriptResult = new BackgroundProjectResult
+                {
+                    Success = false,
+                    Error = $"Initialize script not found: {scriptPath}",
+                    InstanceName = resolvedInstance
+                };
+
+                BackgroundProjectSettings.IsInitializing = false;
+                OnStatusChanged?.Invoke("Initialize failed");
+                OnOperationCompleted?.Invoke(missingScriptResult);
+                return missingScriptResult;
+            }
+
+            var args = initializeAll
+                ? $"-ExecutionPolicy Bypass -File \"{scriptPath}\" -All"
+                : $"-ExecutionPolicy Bypass -File \"{scriptPath}\" -InstanceName \"{resolvedInstance}\"";
+
+            if (configureGitHubRunner)
+                args += " -ConfigureGitHubRunners";
+
+            var stopwatch = Stopwatch.StartNew();
+            try
+            {
+                var result = await RunProcessAsync("powershell.exe", args, BackgroundProjectSettings.GetProjectRoot(), ct, timeoutMs: 900000);
+                result.InstanceName = resolvedInstance;
+                result.Duration = stopwatch.Elapsed;
+
+                if (result.Success)
+                {
+                    BackgroundProjectSettings.LastSyncTime = DateTime.Now;
+                }
+                else
+                {
+                    BackgroundProjectSettings.LastSyncError = result.Error;
+                }
+
+                OnStatusChanged?.Invoke(result.Success ? "Initialize complete" : "Initialize failed");
+                OnOperationCompleted?.Invoke(result);
+                return result;
+            }
+            finally
+            {
+                BackgroundProjectSettings.IsInitializing = false;
             }
         }
 

@@ -43,6 +43,10 @@ public class BackgroundProjectWindow : EditorWindow
 
     private void OnOperationCompleted(BackgroundProjectResult result)
     {
+        if (!string.IsNullOrEmpty(result.InstanceName))
+        {
+            _outputLog += $"[{DateTime.Now:HH:mm:ss}] Instance: {result.InstanceName}\n";
+        }
         if (!result.Success && !string.IsNullOrEmpty(result.Error))
         {
             _outputLog += $"[{DateTime.Now:HH:mm:ss}] Error: {result.Error}\n";
@@ -75,9 +79,12 @@ public class BackgroundProjectWindow : EditorWindow
 
         using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
         {
+            var selected = BackgroundProjectSettings.GetSelectedInstance();
             var projectPath = BackgroundProjectSettings.GetBackgroundProjectPath();
             var exists = BackgroundProjectSettings.BackgroundProjectExists();
 
+            EditorGUILayout.LabelField("Selected Instance:", BackgroundProjectSettings.GetInstanceDisplayName(selected));
+            EditorGUILayout.LabelField("Instance Kind:", BackgroundProjectSettings.GetSelectedInstanceKind());
             EditorGUILayout.LabelField("Background Project Path:", projectPath ?? "(unknown)");
             EditorGUILayout.LabelField("Exists:", exists ? "Yes" : "No");
 
@@ -85,7 +92,8 @@ public class BackgroundProjectWindow : EditorWindow
 
             // Current operation status
             string currentOp = "Idle";
-            if (BackgroundProjectSettings.IsSyncing) currentOp = "Syncing...";
+            if (BackgroundProjectSettings.IsInitializing) currentOp = "Initializing...";
+            else if (BackgroundProjectSettings.IsSyncing) currentOp = "Syncing...";
             else if (BackgroundProjectSettings.IsCompiling) currentOp = "Compiling...";
             else if (BackgroundProjectSettings.IsRunningTests) currentOp = "Running Tests...";
 
@@ -118,6 +126,21 @@ public class BackgroundProjectWindow : EditorWindow
 
             EditorGUI.BeginDisabledGroup(!BackgroundProjectSettings.Enabled);
 
+            var instances = BackgroundProjectSettings.GetInstanceConfigs();
+            var selectedIndex = Array.FindIndex(instances, instance => string.Equals(instance.name, BackgroundProjectSettings.SelectedInstanceName, StringComparison.Ordinal));
+            selectedIndex = selectedIndex < 0 ? 0 : selectedIndex;
+            var labels = new string[instances.Length];
+            for (var i = 0; i < instances.Length; i++)
+            {
+                labels[i] = BackgroundProjectSettings.GetInstanceDisplayName(instances[i]);
+            }
+
+            var nextIndex = EditorGUILayout.Popup("Active Instance", selectedIndex, labels);
+            if (nextIndex >= 0 && nextIndex < instances.Length)
+            {
+                BackgroundProjectSettings.SelectedInstanceName = instances[nextIndex].name;
+            }
+
             BackgroundProjectSettings.Suffix = EditorGUILayout.TextField("Project Suffix", BackgroundProjectSettings.Suffix);
             BackgroundProjectSettings.PreferredSyncTool = (SyncTool)EditorGUILayout.EnumPopup("Sync Tool", BackgroundProjectSettings.PreferredSyncTool);
 
@@ -147,11 +170,27 @@ public class BackgroundProjectWindow : EditorWindow
     {
         EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
 
-        bool isBusy = BackgroundProjectSettings.IsSyncing ||
+        bool isBusy = BackgroundProjectSettings.IsInitializing ||
+                      BackgroundProjectSettings.IsSyncing ||
                       BackgroundProjectSettings.IsCompiling ||
                       BackgroundProjectSettings.IsRunningTests;
 
         EditorGUI.BeginDisabledGroup(isBusy || !BackgroundProjectSettings.Enabled);
+
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button("Initialize", GUILayout.Height(30)))
+            {
+                _outputLog += $"[{DateTime.Now:HH:mm:ss}] Initializing instance...\n";
+                _ = BackgroundProjectService.Instance.InitializeInstanceAsync();
+            }
+
+            if (GUILayout.Button("Initialize All", GUILayout.Height(30)))
+            {
+                _outputLog += $"[{DateTime.Now:HH:mm:ss}] Initializing all instances...\n";
+                _ = BackgroundProjectService.Instance.InitializeInstanceAsync(initializeAll: true);
+            }
+        }
 
         using (new EditorGUILayout.HorizontalScope())
         {
@@ -180,6 +219,18 @@ public class BackgroundProjectWindow : EditorWindow
             {
                 _outputLog += $"[{DateTime.Now:HH:mm:ss}] Starting PlayMode tests...\n";
                 _ = BackgroundProjectService.Instance.RunTestsAsync("PlayMode");
+            }
+        }
+
+        if (BackgroundProjectSettings.SelectedInstanceSupportsRunnerLifecycle())
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Initialize + Start Runner", GUILayout.Height(25)))
+                {
+                    _outputLog += $"[{DateTime.Now:HH:mm:ss}] Initializing runner instance...\n";
+                    _ = BackgroundProjectService.Instance.InitializeInstanceAsync(configureGitHubRunner: true);
+                }
             }
         }
 

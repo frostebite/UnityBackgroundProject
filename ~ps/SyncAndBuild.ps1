@@ -26,6 +26,10 @@
 .PARAMETER Suffix
     Suffix for the background project directory name. Default: "-BackgroundWorker"
 
+.PARAMETER InstanceName
+    Named instance from background-project-config.json. When omitted, uses the
+    primary instance for backward compatibility.
+
 .PARAMETER SkipSync
     Skip the sync step (use if project is already synced).
 
@@ -64,6 +68,7 @@ param(
     [string]$Framework = "",
     [switch]$Steam,
     [string]$Suffix = "-BackgroundWorker",
+    [string]$InstanceName = "",
     [switch]$SkipSync,
     [switch]$SkipCompile,
     [switch]$Verbose,
@@ -235,7 +240,7 @@ function Resolve-FrameworkEnvVars {
 
 # Determine paths first (needed for lock)
 $projectRoot = Get-BackgroundProjectRoot -ScriptRoot $PSScriptRoot -WorkingDirectory $PWD.Path
-$destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix
+$destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix -InstanceName $InstanceName
 
 # Resolve build method
 $resolvedBuildMethod = Resolve-BuildMethod -Framework $Framework -ExplicitMethod $BuildMethod -UseSteam $Steam.IsPresent
@@ -383,7 +388,7 @@ try {
     $script:exitCode = 1
 } finally {
     # Copy logs from background project to main workspace
-    Copy-BackgroundProjectLogs -ProjectRoot $projectRoot -BackgroundProjectPath $destinationPath -OperationName "SyncAndBuild"
+    Copy-BackgroundProjectLogs -ProjectRoot $projectRoot -BackgroundProjectPath $destinationPath -OperationName "SyncAndBuild" -InstanceName $InstanceName
 
     # Always release the lock
     Remove-BackgroundProjectLock -DestinationPath $destinationPath

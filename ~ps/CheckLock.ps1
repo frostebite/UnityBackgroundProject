@@ -9,6 +9,10 @@
 .PARAMETER Suffix
     Suffix for the background project directory name. Default: "-BackgroundWorker"
 
+.PARAMETER InstanceName
+    Named instance from background-project-config.json. When omitted, uses the
+    primary instance for backward compatibility.
+
 .PARAMETER ForceRemove
     Force remove the lock file, even if the locking process still exists.
     Use with caution - only when you're sure the lock is orphaned.
@@ -24,6 +28,7 @@
 
 param(
     [string]$Suffix = "-BackgroundWorker",
+    [string]$InstanceName = "",
     [switch]$ForceRemove
 )
 
@@ -32,7 +37,7 @@ param(
 
 try {
     $projectRoot = Get-BackgroundProjectRoot
-    $destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix
+    $destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix -InstanceName $InstanceName
     $lockPath = Get-BackgroundProjectLockPath -DestinationPath $destinationPath
 
     Write-BackgroundProjectLog "=== Background Worker Lock Status ===" "INFO"

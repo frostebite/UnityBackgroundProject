@@ -60,6 +60,12 @@ The `~ps/` folder contains standalone scripts that work from git hooks, CI pipel
 ./SyncProject.ps1
 ```
 
+**Sync a named instance from config:**
+
+```powershell
+./SyncProject.ps1 -InstanceName "ci-runner"
+```
+
 **Sync and check compilation:**
 
 ```powershell
@@ -80,6 +86,12 @@ The `~ps/` folder contains standalone scripts that work from git hooks, CI pipel
 
 # Or resolve build method from framework id (requires config/frameworks.yml in the project)
 ./SyncAndBuild.ps1 -Framework tow -Steam
+```
+
+**Initialize multiple configured instances and install their GitHub runners:**
+
+```powershell
+./InitializeBackgroundProjects.ps1 -All -ConfigureGitHubRunners
 ```
 
 **Git pre-commit hook:**
@@ -116,6 +128,28 @@ The PowerShell scripts support an optional config file at `~ps/background-projec
 
 ```json
 {
+    "primaryInstance": "primary",
+    "instances": [
+        {
+            "kind": "unity-worker",
+            "displayName": "Primary",
+            "name": "primary",
+            "suffix": "-BackgroundWorker"
+        },
+        {
+            "kind": "github-runner",
+            "displayName": "CI Runner Workspace",
+            "name": "ci-runner",
+            "githubRunner": {
+                "enabled": true,
+                "repository": "frostebite/GameClient",
+                "runnerName": "unity-background-ci",
+                "runnerPath": "D:\\actions-runner-unity-background-ci",
+                "workspacePath": "D:\\actions-runner-unity-background-ci\\_work\\GameClient\\GameClient",
+                "labels": [ "unity", "dynamic", "background" ]
+            }
+        }
+    ],
     "artifactSubpath": "My Company/My Game",
     "buildMethodMap": {
         "myframework": {
@@ -128,10 +162,40 @@ The PowerShell scripts support an optional config file at `~ps/background-projec
 
 | Key | Purpose |
 |-----|---------|
+| `primaryInstance` | Name of the instance treated as the legacy single background worker. Editor UI and scripts without `-InstanceName` use this instance. |
+| `instances` | Named background project definitions. Each instance can set `suffix`, explicit `path`, and optional `githubRunner` settings. |
 | `artifactSubpath` | Company and product subfolder under `AppData/LocalLow` where Unity writes `TestResults.xml`. Used to locate test artifacts after a test run. |
 | `buildMethodMap` | Maps framework IDs to C# build methods. Each entry has a `validation` variant (non-Steam) and a `steam` variant. Used by `SyncAndBuild.ps1` when `-Framework` is specified. |
 
 Without a config file the scripts use sensible defaults. The `artifactSubpath` can also be set via the `BACKGROUND_PROJECT_ARTIFACT_SUBPATH` environment variable.
+
+### Multi-instance behavior
+
+- Existing single-worker usage stays intact. If you do nothing, the package still resolves one primary background project using the legacy suffix approach.
+- When `instances` are configured, every script accepts `-InstanceName` to target a specific background project.
+- Instances can be regular `unity-worker` copies or `github-runner` workspaces.
+- Logs for non-primary instances are copied to `UnityFileLogger/BackgroundWorker/<instance-name>/` so runs do not overwrite each other.
+- The editor window and toolbar keep following the configured `primaryInstance`, which preserves the current user-facing workflow.
+- The editor now lets you choose the active instance, initialize one or all instances, and initialize a runner-backed instance with service startup.
+
+### GitHub runner integration
+
+Each instance can optionally define a `githubRunner` block. `InitializeBackgroundProjects.ps1 -ConfigureGitHubRunners` converts those blocks into the existing WebPlatform runner configuration shape and then calls `WebPlatform/platform.scripts/InstallGitHubRunnerServices.ps1`.
+
+For `github-runner` instances, the operational background project path is the runner workspace, not the runner installation directory. By default that is derived as `<runnerPath>\_work\<repo>\<repo>`, matching `GITHUB_WORKSPACE` on self-hosted runners. You can override it explicitly with `githubRunner.workspacePath`.
+
+Supported `githubRunner` keys:
+
+| Key | Purpose |
+|-----|---------|
+| `enabled` | Enables runner provisioning for that instance. |
+| `repository` / `repoName` | GitHub repository in `owner/repo` format. |
+| `runnerName` | Runner registration name. Defaults to `background-<instance-name>`. |
+| `runnerPath` | Installation path for the GitHub runner files. Defaults to a sibling `actions-runner-<runnerName>` directory. |
+| `workspacePath` | Optional explicit checkout workspace for the runner-backed background project. |
+| `labels` / `labelsCommaList` | Runner labels to register with GitHub. |
+
+Runner provisioning requires the same prerequisites as the existing WebPlatform runner installer, including `PAT_GITHUB`, `nssm`, and the permissions needed to create or update Windows services.
 
 ### Environment Variables
 

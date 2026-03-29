@@ -2,8 +2,33 @@
     "// INSTRUCTIONS": "Copy this file to 'background-project-config.json' (same folder) and customize for your project.",
     "// artifactSubpath": "The company/product subfolder under AppData/LocalLow where Unity writes test results.",
     "// buildMethodMap": "Maps framework IDs to C# build methods. Each entry needs 'validation' and 'steam' variants.",
+    "// primaryInstance": "Editor-side tools continue using this instance as the legacy single background project.",
+    "// instances": "Define any number of named background project instances. Each instance may also declare githubRunner settings.",
 
     "artifactSubpath": "My Company/My Game",
+    "primaryInstance": "primary",
+
+    "instances": [
+        {
+            "kind": "unity-worker",
+            "displayName": "Primary",
+            "name": "primary",
+            "suffix": "-BackgroundWorker"
+        },
+        {
+            "kind": "github-runner",
+            "displayName": "CI Runner Workspace",
+            "name": "ci-runner",
+            "githubRunner": {
+                "enabled": true,
+                "repository": "frostebite/GameClient",
+                "runnerName": "unity-background-ci",
+                "runnerPath": "D:\\actions-runner-unity-background-ci",
+                "workspacePath": "D:\\actions-runner-unity-background-ci\\_work\\GameClient\\GameClient",
+                "labels": [ "unity", "dynamic", "background" ]
+            }
+        }
+    ],
 
     "buildMethodMap": {
         "myframework": {
