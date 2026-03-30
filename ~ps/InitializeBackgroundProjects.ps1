@@ -140,6 +140,16 @@ Write-BackgroundProjectLog "" "INFO"
 $runnerConfigs = @()
 
 foreach ($instance in $instances) {
+    # Filter instances by machine name pattern matching.
+    # User direction: support pattern matching by machine name to say specific or
+    # patterns of machines that will apply the self hosted runner or background project,
+    # so it can run on all/some/one machine.
+    $targetMachines = if ($instance.TargetMachines) { @($instance.TargetMachines) } else { @() }
+    if (-not (Test-MachineMatch -TargetMachines $targetMachines -MachineName $env:COMPUTERNAME)) {
+        Write-BackgroundProjectLog "Skipping instance '$($instance.Name)' - not targeted for machine '$env:COMPUTERNAME'" "INFO"
+        continue
+    }
+
     $destinationPath = Get-BackgroundProjectPath -ProjectRoot $projectRoot -Suffix $Suffix -InstanceName $instance.Name
     $runnerInstallPath = if ($instance.GitHubRunner -and $instance.GitHubRunner.runnerPath) { $instance.GitHubRunner.runnerPath } else { $null }
 

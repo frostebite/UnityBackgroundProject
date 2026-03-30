@@ -23,6 +23,29 @@ function Write-BackgroundProjectLog {
     Write-Host "[$timestamp] [$Level] $Message" -ForegroundColor $color
 }
 
+# Machine name pattern matching for multi-machine deployments.
+# Supports: all machines (null/empty), exact names, wildcard patterns (* and ?).
+function Test-MachineMatch {
+    param(
+        [string[]]$TargetMachines,
+        [string]$MachineName = $env:COMPUTERNAME
+    )
+
+    # If null/empty, matches all machines (backward compatible)
+    if (-not $TargetMachines -or $TargetMachines.Count -eq 0) {
+        return $true
+    }
+
+    # Check each pattern using -like for wildcard support (* and ?)
+    foreach ($pattern in $TargetMachines) {
+        if ($MachineName -like $pattern) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Test-UnityProjectRoot {
     param (
         [string]$Path
@@ -216,6 +239,8 @@ function Get-BackgroundProjectInstances {
             $isPrimary = $instanceName -eq $primaryName
             $instanceKind = if ($rawInstance.kind) { $rawInstance.kind } elseif ($rawInstance.githubRunner) { "github-runner" } else { "unity-worker" }
 
+            $instanceTargetMachines = if ($rawInstance.targetMachines) { @($rawInstance.targetMachines) } else { @() }
+
             $instances += [PSCustomObject]@{
                 Name = $instanceName
                 DisplayName = $rawInstance.displayName
@@ -225,6 +250,7 @@ function Get-BackgroundProjectInstances {
                 WorkspacePath = $instanceWorkspacePath
                 IsPrimary = $isPrimary
                 GitHubRunner = $rawInstance.githubRunner
+                TargetMachines = $instanceTargetMachines
             }
 
             $index++
@@ -247,6 +273,7 @@ function Get-BackgroundProjectInstances {
             WorkspacePath = $null
             IsPrimary = $true
             GitHubRunner = $null
+            TargetMachines = @()
         }
     )
 }

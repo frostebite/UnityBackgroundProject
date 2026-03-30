@@ -8,17 +8,21 @@
     "artifactSubpath": "My Company/My Game",
     "primaryInstance": "primary",
 
+    "// targetMachines": "Optional array of machine name patterns. Omit or use ['*'] for all machines. Uses PowerShell -like wildcards (* and ?).",
+
     "instances": [
         {
             "kind": "unity-worker",
             "displayName": "Primary",
             "name": "primary",
-            "suffix": "-BackgroundWorker"
+            "suffix": "-BackgroundWorker",
+            "// targetMachines omitted": "Omitting targetMachines means this instance runs on ALL machines (backward compatible)"
         },
         {
             "kind": "github-runner",
-            "displayName": "CI Runner Workspace",
-            "name": "ci-runner",
+            "displayName": "CI Runner - All Machines",
+            "name": "ci-runner-all",
+            "targetMachines": ["*"],
             "githubRunner": {
                 "enabled": true,
                 "repository": "frostebite/GameClient",
@@ -26,6 +30,34 @@
                 "runnerPath": "D:\\actions-runner-unity-background-ci",
                 "workspacePath": "D:\\actions-runner-unity-background-ci\\_work\\GameClient\\GameClient",
                 "labels": [ "unity", "dynamic", "background" ]
+            }
+        },
+        {
+            "kind": "github-runner",
+            "displayName": "CI Runner - Specific Machine",
+            "name": "ci-runner-desk",
+            "targetMachines": ["COOLMASTER-DESK"],
+            "githubRunner": {
+                "enabled": true,
+                "repository": "frostebite/GameClient",
+                "runnerName": "unity-background-desk",
+                "runnerPath": "D:\\actions-runner-unity-background-desk",
+                "workspacePath": "D:\\actions-runner-unity-background-desk\\_work\\GameClient\\GameClient",
+                "labels": [ "unity", "dynamic", "background", "desk" ]
+            }
+        },
+        {
+            "kind": "github-runner",
+            "displayName": "CI Runner - Pattern Match",
+            "name": "ci-runner-build",
+            "targetMachines": ["BUILD-*"],
+            "githubRunner": {
+                "enabled": true,
+                "repository": "frostebite/GameClient",
+                "runnerName": "unity-background-build",
+                "runnerPath": "D:\\actions-runner-unity-background-build",
+                "workspacePath": "D:\\actions-runner-unity-background-build\\_work\\GameClient\\GameClient",
+                "labels": [ "unity", "dynamic", "background", "build-farm" ]
             }
         }
     ],

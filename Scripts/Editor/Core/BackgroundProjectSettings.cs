@@ -122,7 +122,13 @@ namespace UnityBackgroundProject
         {
             var config = TryLoadInstanceConfig();
             if (config?.instances != null && config.instances.Length > 0)
-                return config.instances;
+            {
+                var filtered = config.instances.Where(i => i.MatchesCurrentMachine()).ToArray();
+                if (filtered.Length > 0)
+                    return filtered;
+
+                // No instances match this machine — fall through to default
+            }
 
             return new[]
             {
