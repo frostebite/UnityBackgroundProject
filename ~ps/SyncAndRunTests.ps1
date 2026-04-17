@@ -18,7 +18,7 @@
     Test platform to run. Default: "EditMode". Options: EditMode, PlayMode
 
 .PARAMETER TestCategory
-    Optional test category filter (e.g., "Maturity:Trusted")
+    Optional test category filter (e.g., "Maturity:trusted")
 
 .PARAMETER TestFilter
     Optional test name filter (e.g., "Coast_SubPatch_4x4With2x2InMiddle")
@@ -41,7 +41,7 @@
     # Syncs, compiles, and runs PlayMode tests
 
 .EXAMPLE
-    ./SyncAndRunTests.ps1 -TestCategory "Maturity:Trusted" -SkipSync
+    ./SyncAndRunTests.ps1 -TestCategory "Maturity:trusted" -SkipSync
     # Runs trusted tests without syncing
 
 .EXAMPLE
